@@ -212,16 +212,17 @@ def create_historical_scenarios() -> Dict[str, DiseaseParameters]:
     return scenarios
 
 
-def plot_comparison(all_results: List[Dict], scenarios: Dict[str, DiseaseParameters], population: int = 100000, days: int = 30, initial_infected: int = 10):
+def plot_comparison(all_results: Dict, scenarios: Dict[str, DiseaseParameters], 
+                   population: int = 100000, days: int = 30, initial_infected: int = 10):
     """
     Create comprehensive visualization comparing all 5 plagues
     """
     import matplotlib.pyplot as plt
     from matplotlib.gridspec import GridSpec
     
-    # Set up the figure with subplots
+    # Set up the figure with subplots - INCREASED PADDING
     fig = plt.figure(figsize=(16, 10))
-    gs = GridSpec(3, 2, figure=fig, hspace=0.3, wspace=0.3)
+    gs = GridSpec(3, 2, figure=fig, hspace=0.4, wspace=0.35)  # Increased from 0.3
     
     # Define colors for each disease
     colors = {
@@ -287,39 +288,56 @@ def plot_comparison(all_results: List[Dict], scenarios: Dict[str, DiseaseParamet
     ax3.grid(True, alpha=0.3)
     ax3.set_xlim(0, days)
     
-    # 4. SEIR COMPARTMENTS STACKED (middle right - pick most interesting disease)
+    # 4. SEIR COMPARTMENTS STACKED (middle right - WORST PLAGUE BY SCORE)
     ax4 = fig.add_subplot(gs[1, 1])
-    # Let's show COVID-19 as example
-    covid_result = all_results['covid19']
-    days = covid_result['history']['day']
     
-    ax4.fill_between(days, 0, covid_result['history']['S'], 
+    # FIND THE WORST PLAGUE (highest score)
+    worst_plague_key = None
+    worst_score = 0
+    worst_plague_name = ""
+    
+    for scenario_key, result in all_results.items():
+        stats = result['stats']
+        score = (stats['total_infected'] * 0.5 + 
+                stats['peak_hospital_load'] * 0.3 + 
+                stats['total_deaths'] * 0.2)
+        if score > worst_score:
+            worst_score = score
+            worst_plague_key = scenario_key
+            worst_plague_name = scenarios[scenario_key].name
+    
+    # Plot the worst plague
+    worst_result = all_results[worst_plague_key]
+    day_array = worst_result['history']['day']
+    
+    ax4.fill_between(day_array, 0, worst_result['history']['S'], 
                      label='Susceptible', color='lightblue', alpha=0.7)
-    ax4.fill_between(days, covid_result['history']['S'], 
-                     [s+e for s,e in zip(covid_result['history']['S'], covid_result['history']['E'])],
+    ax4.fill_between(day_array, worst_result['history']['S'], 
+                     [s+e for s,e in zip(worst_result['history']['S'], worst_result['history']['E'])],
                      label='Exposed', color='orange', alpha=0.7)
-    ax4.fill_between(days, 
-                     [s+e for s,e in zip(covid_result['history']['S'], covid_result['history']['E'])],
-                     [s+e+i for s,e,i in zip(covid_result['history']['S'], 
-                                            covid_result['history']['E'],
-                                            covid_result['history']['I'])],
+    ax4.fill_between(day_array, 
+                     [s+e for s,e in zip(worst_result['history']['S'], worst_result['history']['E'])],
+                     [s+e+i for s,e,i in zip(worst_result['history']['S'], 
+                                            worst_result['history']['E'],
+                                            worst_result['history']['I'])],
                      label='Infectious', color='red', alpha=0.7)
-    ax4.fill_between(days,
-                     [s+e+i for s,e,i in zip(covid_result['history']['S'], 
-                                            covid_result['history']['E'],
-                                            covid_result['history']['I'])],
-                     [s+e+i+r for s,e,i,r in zip(covid_result['history']['S'], 
-                                                 covid_result['history']['E'],
-                                                 covid_result['history']['I'],
-                                                 covid_result['history']['R'])],
+    ax4.fill_between(day_array,
+                     [s+e+i for s,e,i in zip(worst_result['history']['S'], 
+                                            worst_result['history']['E'],
+                                            worst_result['history']['I'])],
+                     [s+e+i+r for s,e,i,r in zip(worst_result['history']['S'], 
+                                                 worst_result['history']['E'],
+                                                 worst_result['history']['I'],
+                                                 worst_result['history']['R'])],
                      label='Recovered', color='green', alpha=0.7)
     
     ax4.set_xlabel('Days', fontsize=11, fontweight='bold')
     ax4.set_ylabel('Population', fontsize=11, fontweight='bold')
-    ax4.set_title('Population Flow (COVID-19 Example)', fontsize=13, fontweight='bold')
+    ax4.set_title(f'Population Flow - Winner: {worst_plague_name}', fontsize=13, fontweight='bold')
     ax4.legend(loc='right', frameon=True, fontsize=9)
     ax4.grid(True, alpha=0.3)
-    ax4.set_xlim(0, 30)
+    ax4.set_xlim(0, days)
+    ax4.set_ylim(0, population)
     
     # 5. FINAL SCOREBOARD (bottom, spanning both columns)
     ax5 = fig.add_subplot(gs[2, :])
@@ -386,11 +404,11 @@ def plot_comparison(all_results: List[Dict], scenarios: Dict[str, DiseaseParamet
     winner_cell.set_text_props(weight='bold', fontsize=11, color='darkred')
     
     # Overall title
-    fig.suptitle('HISTORICAL PLAGUE COMPETITION - 30 DAY SIMULATION RESULTS', 
+    fig.suptitle(f'HISTORICAL PLAGUE COMPETITION - {days} DAY SIMULATION RESULTS', 
                 fontsize=16, fontweight='bold', y=0.98)
     
     # Add subtitle
-    fig.text(0.5, 0.95, 'Population: 100,000 | Initial Infected: 100 | Scoring: 50% Infected + 30% Hospital + 20% Deaths',
+    fig.text(0.5, 0.94, f'Population: {population:,} | Initial Infected: {initial_infected} | Scoring: 50% Infected + 30% Hospital + 20% Deaths',
             ha='center', fontsize=11, style='italic')
     
     plt.tight_layout(rect=[0, 0, 1, 0.96])
@@ -407,7 +425,6 @@ if __name__ == "__main__":
     parser.add_argument("initial_infected", help="Initial number of infected individuals", type=int)
     parser.add_argument("days", help="Number of days to simulate", type=int)
     parser.add_argument("--no-viz", help="Disable visualization", action="store_true")
-    parser.add_argument("--output", help="Output filename for visualization", type=str, default="plague_competition.png")
     args = parser.parse_args()
     
     # Load scenarios
@@ -508,24 +525,20 @@ if __name__ == "__main__":
         print("GENERATING VISUALIZATIONS...")
         print("="*70)
         
-        # try:
-        #     # Main comparison plot
-        #     fig = plot_comparison(all_results, scenarios, population=args.population, days=args.days, initial_infected=args.initial_infected)
-        #     plt.savefig(args.output, dpi=300, bbox_inches='tight')
-        #     print(f"\n✓ Saved comparison plot: {args.output}")
-        #     # Show the plot
-        #     plt.show()
+        try:
+            # Main comparison plot
+            fig = plot_comparison(all_results, scenarios, population=args.population, days=args.days, initial_infected=args.initial_infected)
+            output_file = f"plagues_competition_{args.days}.png"
+            plt.savefig(output_file, dpi=300, bbox_inches='tight')
+            print(f"\n✓ Saved comparison plot: {output_file}")
+            # Show the plot
+            plt.show()
             
-        # except Exception as e:
-        #     print(f"\n⚠ Visualization failed: {e}")
-        #     print("Continuing without visualization...")
+        except Exception as e:
+            print(f"\n⚠ Visualization failed: {e}")
+            print("Continuing without visualization...")
 
-        # Main comparison plot
-        fig = plot_comparison(all_results, scenarios, population=args.population, days=args.days, initial_infected=args.initial_infected)
-        plt.savefig(args.output, dpi=300, bbox_inches='tight')
-        print(f"\n✓ Saved comparison plot: {args.output}")
-        # Show the plot
-        plt.show()
+    
 
     print("\n" + "="*70)
     print("SIMULATION COMPLETE!")
