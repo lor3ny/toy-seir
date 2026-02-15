@@ -177,17 +177,6 @@ def create_historical_scenarios() -> Dict[str, DiseaseParameters]:
             starting_location="military_base"
         ),
         
-        'covid19': DiseaseParameters(
-            name="COVID-19 Original (2020)",
-            r0=2.8,
-            incubation_days=5.0,
-            infectious_days=10.0,
-            fatality_rate=0.015,
-            recovery_days=14.0,
-            asymptomatic_rate=0.40,
-            starting_location="airport"
-        ),
-        
         'measles': DiseaseParameters(
             name="Measles (unvaccinated)",
             r0=15.0,
@@ -215,7 +204,7 @@ def create_historical_scenarios() -> Dict[str, DiseaseParameters]:
 def plot_comparison(all_results: Dict, scenarios: Dict[str, DiseaseParameters], 
                    population: int = 100000, days: int = 30, initial_infected: int = 10):
     """
-    Create comprehensive visualization comparing all 5 plagues
+    Create comprehensive visualization comparing all plagues
     """
     import matplotlib.pyplot as plt
     from matplotlib.gridspec import GridSpec
@@ -390,9 +379,9 @@ def plot_comparison(all_results: Dict, scenarios: Dict[str, DiseaseParameters],
         cell.set_facecolor('#34495e')
         cell.set_text_props(weight='bold', color='white')
     
-    # Color-code ranks
-    rank_colors = ['#FFD700', '#C0C0C0', '#CD7F32', '#E8E8E8', '#F5F5F5']  # Gold, Silver, Bronze, etc.
-    for i in range(1, 6):
+    # Color-code ranks (now for 4 scenarios)
+    rank_colors = ['#FFD700', '#C0C0C0', '#CD7F32', '#E8E8E8']  # Gold, Silver, Bronze, 4th place
+    for i in range(1, len(scores_data) + 1):
         for j in range(6):
             cell = table[(i, j)]
             cell.set_facecolor(rank_colors[i-1])
@@ -524,19 +513,27 @@ if __name__ == "__main__":
         print("\n" + "="*70)
         print("GENERATING VISUALIZATIONS...")
         print("="*70)
-        
-        try:
-            # Main comparison plot
-            fig = plot_comparison(all_results, scenarios, population=args.population, days=args.days, initial_infected=args.initial_infected)
-            output_file = f"plagues_competition_{args.days}.png"
-            plt.savefig(output_file, dpi=300, bbox_inches='tight')
-            print(f"\n✓ Saved comparison plot: {output_file}")
-            # Show the plot
-            plt.show()
+
+        fig = plot_comparison(all_results, scenarios, population=args.population, days=args.days, initial_infected=args.initial_infected)
+        output_file = f"plagues_competition_{args.days}.png"
+        plt.savefig(output_file, dpi=300, bbox_inches='tight')
+        print(f"\n✓ Saved comparison plot: {output_file}")
+        # Show the plot
+        plt.show()
             
-        except Exception as e:
-            print(f"\n⚠ Visualization failed: {e}")
-            print("Continuing without visualization...")
+        
+        # try:
+        #     # Main comparison plot
+        #     fig = plot_comparison(all_results, scenarios, population=args.population, days=args.days, initial_infected=args.initial_infected)
+        #     output_file = f"plagues_competition_{args.days}.png"
+        #     plt.savefig(output_file, dpi=300, bbox_inches='tight')
+        #     print(f"\n✓ Saved comparison plot: {output_file}")
+        #     # Show the plot
+        #     plt.show()
+            
+        # except Exception as e:
+        #     print(f"\n⚠ Visualization failed: {e}")
+        #     print("Continuing without visualization...")
 
     
 
