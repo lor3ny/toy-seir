@@ -7,7 +7,6 @@ from typing import Dict, List, Tuple
 
 @dataclass
 class DiseaseParameters:
-    """Parameters defining a specific disease"""
     name: str
     r0: float                    # Basic reproduction number
     incubation_days: float       # Days in Exposed state
@@ -18,16 +17,12 @@ class DiseaseParameters:
     starting_location: str = "downtown"
     
     def get_beta(self, population_density: float = 1.0) -> float:
-        """Calculate transmission rate from R0"""
-        # beta = R0 / (infectious_period)
         return self.r0 / self.infectious_days
     
     def get_sigma(self) -> float:
-        """Rate of progression from Exposed to Infectious"""
         return 1.0 / self.incubation_days
     
     def get_gamma(self) -> float:
-        """Recovery rate"""
         return 1.0 / self.infectious_days
 
 class SEIRSimulator:
@@ -46,25 +41,21 @@ class SEIRSimulator:
                  initial_infected: int = 10):
         
         self.disease = disease
-        self.N = population  # Total population
+        self.N = population  
         
-        # Initial conditions
-        self.S = population - initial_infected  # Susceptible
-        self.E = 0                               # Exposed
-        self.I = initial_infected                # Infectious
-        self.R = 0                               # Recovered
-        self.D = 0                               # Dead
+
+        self.S = population - initial_infected  
+        self.E = 0                              
+        self.I = initial_infected                
+        self.R = 0                              
+        self.D = 0                              
         
-        # Calculate rates from disease parameters
-        # CORRECTED: beta must account for contact rate
-        # beta = R0 * gamma (recovery rate)
-        # This ensures R0 infections per infectious period
-        self.gamma = disease.get_gamma()  # Recovery rate
-        self.beta = disease.r0 * self.gamma / population  # Transmission rate (mass action)
-        self.sigma = disease.get_sigma()  # Incubation rate
-        self.mu = disease.fatality_rate   # Death rate
-        
-        # Storage for results
+
+        self.gamma = disease.get_gamma()  
+        self.beta = disease.r0 * self.gamma / population 
+        self.sigma = disease.get_sigma() 
+        self.mu = disease.fatality_rate  
+
         self.history = {
             'S': [self.S],
             'E': [self.E],
@@ -75,33 +66,22 @@ class SEIRSimulator:
         }
     
     def step(self, dt: float = 1.0):
-        """
-        Advance simulation by one time step (default 1 day)
-        Uses differential equations for SEIR model
-        """
-        
-        # Current population sizes
+
         S, E, I, R, D = self.S, self.E, self.I, self.R, self.D
         
-        # SEIR differential equations with mass action mixing
-        # New exposures: contact rate * probability of contact with infectious
         new_exposures = self.beta * S * I * dt
         
-        # Exposed become infectious
         new_infectious = self.sigma * E * dt
         
-        # Infectious people recover or die
         new_recovered = self.gamma * I * (1 - self.mu) * dt
         new_deaths = self.gamma * I * self.mu * dt
         
-        # Update compartments
         self.S -= new_exposures
         self.E += new_exposures - new_infectious
         self.I += new_infectious - new_recovered - new_deaths
         self.R += new_recovered
         self.D += new_deaths
         
-        # Ensure no negative values (numerical stability)
         self.S = max(0, self.S)
         self.E = max(0, self.E)
         self.I = max(0, self.I)
@@ -120,7 +100,6 @@ class SEIRSimulator:
         for step in range(total_steps):
             self.step(dt=dt)
             
-            # Record state once per day
             if (step + 1) % steps_per_day == 0:
                 day = (step + 1) // steps_per_day
                 self.history['S'].append(self.S)
@@ -138,9 +117,9 @@ class SEIRSimulator:
         total_infected = self.history['E'][-1] + self.history['I'][-1] + self.history['R'][-1] + self.history['D'][-1]
         peak_infectious = max(self.history['I'])
         total_deaths = self.history['D'][-1]
-        attack_rate = (total_infected / self.N) * 100  # Percentage infected
+        attack_rate = (total_infected / self.N) * 100 
         
-        # Estimate hospital load (assume 10% of infectious need hospitalization)
+
         peak_hospital_load = peak_infectious * 0.10
         
         return {
@@ -154,7 +133,7 @@ class SEIRSimulator:
 
 
 def create_historical_scenarios() -> Dict[str, DiseaseParameters]:
-    """Define our 5 historical disease scenarios"""
+    
     
     scenarios = {
         'black_death': DiseaseParameters(
@@ -203,26 +182,24 @@ def create_historical_scenarios() -> Dict[str, DiseaseParameters]:
 
 def plot_comparison(all_results: Dict, scenarios: Dict[str, DiseaseParameters], 
                    population: int = 100000, days: int = 30, initial_infected: int = 10):
-    """
-    Create comprehensive visualization comparing all plagues
-    """
+    
     import matplotlib.pyplot as plt
     from matplotlib.gridspec import GridSpec
     
-    # Set up the figure with subplots - INCREASED PADDING
-    fig = plt.figure(figsize=(16, 10))
-    gs = GridSpec(3, 2, figure=fig, hspace=0.4, wspace=0.35)  # Increased from 0.3
     
-    # Define colors for each disease
+    fig = plt.figure(figsize=(16, 10))
+    gs = GridSpec(3, 2, figure=fig, hspace=0.4, wspace=0.35)  
+    
+    
     colors = {
-        'black_death': '#8B0000',      # Dark red
-        'spanish_flu': '#FF6B6B',      # Light red
-        'covid19': '#4ECDC4',          # Teal
-        'measles': '#FFE66D',          # Yellow
-        'ebola': '#2C3E50'             # Dark blue-gray
+        'black_death': '#8B0000',    
+        'spanish_flu': '#FF6B6B',     
+        'covid19': '#4ECDC4',         
+        'measles': '#FFE66D',          
+        'ebola': '#2C3E50'             
     }
     
-    # 1. INFECTIOUS OVER TIME (top left)
+    
     ax1 = fig.add_subplot(gs[0, 0])
     for scenario_key, result in all_results.items():
         disease_name = scenarios[scenario_key].name
@@ -239,12 +216,12 @@ def plot_comparison(all_results: Dict, scenarios: Dict[str, DiseaseParameters],
     ax1.grid(True, alpha=0.3)
     ax1.set_xlim(0, days)
     
-    # 2. CUMULATIVE INFECTIONS (top right)
+
     ax2 = fig.add_subplot(gs[0, 1])
     for scenario_key, result in all_results.items():
         disease_name = scenarios[scenario_key].name
         history = result['history']
-        # Total infected = E + I + R + D
+       
         cumulative = [e + i + r + d for e, i, r, d in 
                      zip(history['E'], history['I'], history['R'], history['D'])]
         ax2.plot(history['day'], 
@@ -260,7 +237,7 @@ def plot_comparison(all_results: Dict, scenarios: Dict[str, DiseaseParameters],
     ax2.grid(True, alpha=0.3)
     ax2.set_xlim(0, days)
     
-    # 3. DEATHS OVER TIME (middle left)
+   
     ax3 = fig.add_subplot(gs[1, 0])
     for scenario_key, result in all_results.items():
         disease_name = scenarios[scenario_key].name
@@ -277,10 +254,10 @@ def plot_comparison(all_results: Dict, scenarios: Dict[str, DiseaseParameters],
     ax3.grid(True, alpha=0.3)
     ax3.set_xlim(0, days)
     
-    # 4. SEIR COMPARTMENTS STACKED (middle right - WORST PLAGUE BY SCORE)
+  
     ax4 = fig.add_subplot(gs[1, 1])
     
-    # FIND THE WORST PLAGUE (highest score)
+ 
     worst_plague_key = None
     worst_score = 0
     worst_plague_name = ""
@@ -295,7 +272,7 @@ def plot_comparison(all_results: Dict, scenarios: Dict[str, DiseaseParameters],
             worst_plague_key = scenario_key
             worst_plague_name = scenarios[scenario_key].name
     
-    # Plot the worst plague
+    
     worst_result = all_results[worst_plague_key]
     day_array = worst_result['history']['day']
     
@@ -328,11 +305,11 @@ def plot_comparison(all_results: Dict, scenarios: Dict[str, DiseaseParameters],
     ax4.set_xlim(0, days)
     ax4.set_ylim(0, population)
     
-    # 5. FINAL SCOREBOARD (bottom, spanning both columns)
+   
     ax5 = fig.add_subplot(gs[2, :])
     ax5.axis('off')
     
-    # Calculate scores
+    
     scores_data = []
     for scenario_key, result in all_results.items():
         stats = result['stats']
@@ -348,10 +325,10 @@ def plot_comparison(all_results: Dict, scenarios: Dict[str, DiseaseParameters],
             'key': scenario_key
         })
     
-    # Sort by score
+   
     scores_data.sort(key=lambda x: x['score'], reverse=True)
     
-    # Create scoreboard table
+   
     table_data = [['Rank', 'Disease', 'Total Score', 'Infected', 'Deaths', 'Peak Hospital']]
     for rank, item in enumerate(scores_data, 1):
         table_data.append([
@@ -363,7 +340,7 @@ def plot_comparison(all_results: Dict, scenarios: Dict[str, DiseaseParameters],
             f"{item['peak_hospital']:,.0f}"
         ])
     
-    # Draw table
+    
     table = ax5.table(cellText=table_data, 
                      cellLoc='center',
                      loc='center',
@@ -373,14 +350,14 @@ def plot_comparison(all_results: Dict, scenarios: Dict[str, DiseaseParameters],
     table.set_fontsize(10)
     table.scale(1, 2.5)
     
-    # Style header row
+   
     for i in range(6):
         cell = table[(0, i)]
         cell.set_facecolor('#34495e')
         cell.set_text_props(weight='bold', color='white')
     
-    # Color-code ranks (now for 4 scenarios)
-    rank_colors = ['#FFD700', '#C0C0C0', '#CD7F32', '#E8E8E8']  # Gold, Silver, Bronze, 4th place
+  
+    rank_colors = ['#FFD700', '#C0C0C0', '#CD7F32', '#E8E8E8']
     for i in range(1, len(scores_data) + 1):
         for j in range(6):
             cell = table[(i, j)]
@@ -388,15 +365,15 @@ def plot_comparison(all_results: Dict, scenarios: Dict[str, DiseaseParameters],
             if j == 0:  # Rank column
                 cell.set_text_props(weight='bold', fontsize=12)
     
-    # Winner highlight
+    
     winner_cell = table[(1, 1)]
     winner_cell.set_text_props(weight='bold', fontsize=11, color='darkred')
     
-    # Overall title
+    
     fig.suptitle(f'HISTORICAL PLAGUE COMPETITION - {days} DAY SIMULATION RESULTS', 
                 fontsize=16, fontweight='bold', y=0.98)
     
-    # Add subtitle
+  
     fig.text(0.5, 0.94, f'Population: {population:,} | Initial Infected: {initial_infected} | Scoring: 50% Infected + 30% Hospital + 20% Deaths',
             ha='center', fontsize=11, style='italic')
     
@@ -405,7 +382,7 @@ def plot_comparison(all_results: Dict, scenarios: Dict[str, DiseaseParameters],
     return fig
 
 
-# TEST THE MODEL
+
 if __name__ == "__main__":
     import argparse as ap
     
@@ -416,7 +393,7 @@ if __name__ == "__main__":
     parser.add_argument("--no-viz", help="Disable visualization", action="store_true")
     args = parser.parse_args()
     
-    # Load scenarios
+  
     scenarios = create_historical_scenarios()
     
     print("="*70)
@@ -425,35 +402,34 @@ if __name__ == "__main__":
     print("="*70)
     
     results_summary = []
-    all_results = {}  # Store full history for visualization
+    all_results = {}  
     
-    # Run all scenarios
+    
     for scenario_key, disease in scenarios.items():
         print(f"\n{'='*70}")
         print(f"Running: {disease.name}")
         print(f"{'='*70}")
         
-        # Create simulator
+
         sim = SEIRSimulator(
             disease=disease, 
             population=args.population, 
             initial_infected=args.initial_infected
         )
         
-        # Run simulation
+       
         results = sim.simulate(days=args.days)
         
-        # Get statistics
+
         stats = sim.get_summary_stats()
-        
-        # Store complete results for visualization
+
         all_results[scenario_key] = {
             'history': results,
             'stats': stats,
             'disease': disease
         }
         
-        # Print results
+   
         print(f"\nDisease Parameters:")
         print(f"  R₀: {disease.r0}")
         print(f"  Incubation Period: {disease.incubation_days} days")
@@ -467,7 +443,7 @@ if __name__ == "__main__":
         print(f"  Total Deaths: {stats['total_deaths']:,.0f}")
         print(f"  Case Fatality Rate: {stats['case_fatality_rate']:.2f}%")
         
-        # Store for final ranking
+
         results_summary.append({
             'name': disease.name,
             'total_infected': stats['total_infected'],
@@ -478,7 +454,7 @@ if __name__ == "__main__":
             'stats': stats
         })
     
-    # Calculate scores and rank
+
     print("\n" + "="*70)
     print("FINAL SCOREBOARD - RANKED BY TOTAL IMPACT")
     print("="*70)
@@ -486,16 +462,16 @@ if __name__ == "__main__":
     print()
     
     for result in results_summary:
-        # Calculate composite score
+
         score = (result['total_infected'] * 0.5 + 
                 result['peak_hospital_load'] * 0.3 + 
                 result['total_deaths'] * 0.2)
         result['score'] = score
     
-    # Sort by score
+
     results_summary.sort(key=lambda x: x['score'], reverse=True)
     
-    # Print rankings
+
     for rank, result in enumerate(results_summary, 1):
         print(f"{rank}. {result['name']}")
         print(f"   Score: {result['score']:,.0f} points")
@@ -508,7 +484,7 @@ if __name__ == "__main__":
     print(f"WINNER: {results_summary[0]['name']}")
     print("="*70)
     
-    # CREATE VISUALIZATIONS (unless disabled)
+
     if not args.no_viz:
         print("\n" + "="*70)
         print("GENERATING VISUALIZATIONS...")
@@ -518,24 +494,7 @@ if __name__ == "__main__":
         output_file = f"plagues_competition_{args.days}.png"
         plt.savefig(output_file, dpi=300, bbox_inches='tight')
         print(f"\n✓ Saved comparison plot: {output_file}")
-        # Show the plot
         plt.show()
-            
-        
-        # try:
-        #     # Main comparison plot
-        #     fig = plot_comparison(all_results, scenarios, population=args.population, days=args.days, initial_infected=args.initial_infected)
-        #     output_file = f"plagues_competition_{args.days}.png"
-        #     plt.savefig(output_file, dpi=300, bbox_inches='tight')
-        #     print(f"\n✓ Saved comparison plot: {output_file}")
-        #     # Show the plot
-        #     plt.show()
-            
-        # except Exception as e:
-        #     print(f"\n⚠ Visualization failed: {e}")
-        #     print("Continuing without visualization...")
-
-    
 
     print("\n" + "="*70)
     print("SIMULATION COMPLETE!")
